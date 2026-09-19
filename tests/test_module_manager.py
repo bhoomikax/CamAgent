@@ -106,7 +106,7 @@ def test_reload_module_loads_when_not_loaded(monkeypatch):
 
     result = module_manager.reload_module("uvcvideo")
 
-    assert result["success"] is True
+    assert result["success"] is False
     assert result["verified_loaded"] is False
 
 

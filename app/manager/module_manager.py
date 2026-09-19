@@ -69,16 +69,20 @@ def list_modules() -> List[Dict[str, Any]]:
 
         name = parts[0]
         size = parts[1]
-        used_by_raw = " ".join(parts[3:])
+        used_by_value = parts[2] if len(parts) >= 3 else ""
         used_by: List[int] = []
 
-        for token in re.split(r"[\s,]+", used_by_raw.strip()):
-            if not token:
-                continue
-            try:
-                used_by.append(int(token))
-            except ValueError:
-                continue
+        if used_by_value.isdigit():
+            used_by = [int(used_by_value)]
+        else:
+            used_by_raw = " ".join(parts[2:])
+            for token in re.split(r"[\s,]+", used_by_raw.strip()):
+                if not token:
+                    continue
+                try:
+                    used_by.append(int(token))
+                except ValueError:
+                    continue
 
         modules.append({
             "name": name,
