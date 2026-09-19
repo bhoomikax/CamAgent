@@ -298,17 +298,26 @@ def reload_module(module: str) -> Dict[str, Any]:
 
     if not is_module_loaded(safe_module):
         load_result = load_module(safe_module)
+        verified_loaded = is_module_loaded(safe_module)
+        _log_operation(
+            "reload",
+            safe_module,
+            load_result["success"] and verified_loaded,
+            "module reloaded successfully" if load_result["success"] and verified_loaded else load_result["message"],
+            None if load_result["success"] and verified_loaded else load_result["error"],
+        )
         return {
-            "success": load_result["success"],
+            "success": load_result["success"] and verified_loaded,
             "module": safe_module,
             "operation": "reload",
-            "message": "module reloaded successfully" if load_result["success"] else load_result["message"],
-            "error": None if load_result["success"] else load_result["error"],
-            "verified_loaded": is_module_loaded(safe_module),
+            "message": "module reloaded successfully" if load_result["success"] and verified_loaded else load_result["message"],
+            "error": None if load_result["success"] and verified_loaded else load_result["error"],
+            "verified_loaded": verified_loaded,
         }
 
     unload_result = unload_module(safe_module)
     if not unload_result["success"]:
+        _log_operation("reload", safe_module, False, unload_result["message"], unload_result["error"])
         return {
             "success": False,
             "module": safe_module,
@@ -322,7 +331,7 @@ def reload_module(module: str) -> Dict[str, Any]:
     verified_loaded = is_module_loaded(safe_module)
 
     if load_result["success"] and verified_loaded:
-        logger.info("reload operation succeeded for %s", safe_module)
+        _log_operation("reload", safe_module, True, "module reloaded successfully", None)
         return {
             "success": True,
             "module": safe_module,
@@ -332,6 +341,7 @@ def reload_module(module: str) -> Dict[str, Any]:
             "verified_loaded": True,
         }
 
+    _log_operation("reload", safe_module, False, load_result["message"], load_result["error"])
     return {
         "success": False,
         "module": safe_module,

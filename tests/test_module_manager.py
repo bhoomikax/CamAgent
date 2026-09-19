@@ -97,6 +97,17 @@ def test_reload_module_verifies_state(monkeypatch):
     assert result["success"] is True
     assert calls["unload"] is True
     assert calls["load"] is True
+    assert result["verified_loaded"] is True
+
+
+def test_reload_module_loads_when_not_loaded(monkeypatch):
+    monkeypatch.setattr(module_manager, "is_module_loaded", lambda module: False)
+    monkeypatch.setattr(module_manager, "load_module", lambda module: {"success": True, "module": module, "operation": "load", "message": "ok", "error": None})
+
+    result = module_manager.reload_module("uvcvideo")
+
+    assert result["success"] is True
+    assert result["verified_loaded"] is False
 
 
 def test_get_module_info_missing_module_returns_error(monkeypatch):
