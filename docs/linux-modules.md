@@ -160,7 +160,3 @@ This creates a clean OS boundary where Python acts as a structured control layer
 
 ---
 
-## Summary
-For this review, the student must understand that Linux kernel modules are runtime-extensible pieces of privileged kernel code. They are discovered through `lsmod`, described through `modinfo`, loaded via `modprobe`, and removed via `modprobe -r` or `rmmod`. The `/proc/modules` and `/sys/module` interfaces provide additional runtime visibility into the loaded state of the kernel.
-
-This foundation is what the Python manager will build on in the next implementation steps.

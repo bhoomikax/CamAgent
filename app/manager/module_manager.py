@@ -32,6 +32,17 @@ def _run_command(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, check=False)
 
 
+def _log_operation(operation: str, module: str, success: bool, message: str, error: str | None = None) -> None:
+    logger.info(
+        "operation=%s module=%s result=%s message=%s error=%s",
+        operation,
+        module,
+        "success" if success else "failed",
+        message,
+        error,
+    )
+
+
 def list_modules() -> List[Dict[str, Any]]:
     try:
         result = _run_command(["lsmod"])
@@ -174,6 +185,7 @@ def load_module(module: str) -> Dict[str, Any]:
         }
 
     if is_module_loaded(safe_module):
+        _log_operation("load", safe_module, False, "module is already loaded", "ModuleAlreadyLoaded")
         return {
             "success": False,
             "module": safe_module,
@@ -197,6 +209,7 @@ def load_module(module: str) -> Dict[str, Any]:
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "load failed"
         logger.warning("modprobe failed for %s: %s", safe_module, message)
+        _log_operation("load", safe_module, False, message, "CommandFailed")
         return {
             "success": False,
             "module": safe_module,
@@ -205,7 +218,7 @@ def load_module(module: str) -> Dict[str, Any]:
             "error": "CommandFailed",
         }
 
-    logger.info("load operation succeeded for %s", safe_module)
+    _log_operation("load", safe_module, True, "module loaded successfully", None)
     return {
         "success": True,
         "module": safe_module,
@@ -228,6 +241,7 @@ def unload_module(module: str) -> Dict[str, Any]:
         }
 
     if not is_module_loaded(safe_module):
+        _log_operation("unload", safe_module, False, "module is not loaded", "ModuleNotLoaded")
         return {
             "success": False,
             "module": safe_module,
@@ -251,6 +265,7 @@ def unload_module(module: str) -> Dict[str, Any]:
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "unload failed"
         logger.warning("modprobe -r failed for %s: %s", safe_module, message)
+        _log_operation("unload", safe_module, False, message, "CommandFailed")
         return {
             "success": False,
             "module": safe_module,
@@ -259,7 +274,7 @@ def unload_module(module: str) -> Dict[str, Any]:
             "error": "CommandFailed",
         }
 
-    logger.info("unload operation succeeded for %s", safe_module)
+    _log_operation("unload", safe_module, True, "module unloaded successfully", None)
     return {
         "success": True,
         "module": safe_module,

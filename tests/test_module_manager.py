@@ -59,6 +59,24 @@ def test_invalid_module_name_is_rejected():
     assert result["error"] == "InvalidModuleName"
 
 
+def test_load_module_returns_already_loaded(monkeypatch):
+    monkeypatch.setattr(module_manager, "is_module_loaded", lambda module: True)
+
+    result = module_manager.load_module("uvcvideo")
+
+    assert result["success"] is False
+    assert result["error"] == "ModuleAlreadyLoaded"
+
+
+def test_unload_module_returns_not_loaded(monkeypatch):
+    monkeypatch.setattr(module_manager, "is_module_loaded", lambda module: False)
+
+    result = module_manager.unload_module("uvcvideo")
+
+    assert result["success"] is False
+    assert result["error"] == "ModuleNotLoaded"
+
+
 def test_reload_module_verifies_state(monkeypatch):
     calls = {"unload": False, "load": False}
 
