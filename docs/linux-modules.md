@@ -158,5 +158,11 @@ The Python layer should not guess or invent behavior. Instead, it should use det
 
 This creates a clean OS boundary where Python acts as a structured control layer between higher-level policy and the kernel itself.
 
----
+## 14. Structured action safety policy
+The agent-facing layer uses a closed set of structured operations rather than accepting arbitrary shell commands. It validates the operation and module name before asking the safety policy to evaluate the action.
 
+Read-only operations (`list_modules`, `get_module_info`, and `check_module`) do not require confirmation. Loading, unloading, and reloading are disruptive operations and require confirmation before execution. The policy checks live module state before allowing a mutation: it rejects loading an already-loaded module and rejects unloading or reloading a module that is not loaded.
+
+The default protected set is intentionally small: `ext4`, `xfs`, `btrfs`, `overlay`, and `dm_mod`. These modules cannot be unloaded or reloaded through the agent. Applications can replace the default set with a deployment-specific protected-module list. The policy itself does not execute Linux commands; it receives module state from the module manager.
+
+---
