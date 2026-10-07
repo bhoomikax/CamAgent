@@ -165,4 +165,6 @@ Read-only operations (`list_modules`, `get_module_info`, and `check_module`) do 
 
 The default protected set is intentionally small: `ext4`, `xfs`, `btrfs`, `overlay`, and `dm_mod`. These modules cannot be unloaded or reloaded through the agent. Applications can replace the default set with a deployment-specific protected-module list. The policy itself does not execute Linux commands; it receives module state from the module manager.
 
+Dry-run planning turns a policy decision into a human-readable preview and never calls the module manager or requests confirmation. Before a disruptive operation is executed, a confirmation handler must explicitly return `True`; missing, declined, or non-boolean responses block execution.
+
 ---
