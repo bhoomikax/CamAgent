@@ -167,4 +167,6 @@ The default protected set is intentionally small: `ext4`, `xfs`, `btrfs`, `overl
 
 Dry-run planning turns a policy decision into a human-readable preview and never calls the module manager or requests confirmation. Before a disruptive operation is executed, a confirmation handler must explicitly return `True`; missing, declined, or non-boolean responses block execution.
 
+The executor is the only layer that coordinates the complete flow. It validates raw structured input, applies the policy, returns previews for dry runs, obtains confirmation when required, and dispatches the approved operation to the module manager. It does not accept or construct arbitrary command strings.
+
 ---
