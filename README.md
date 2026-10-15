@@ -78,6 +78,26 @@ policy; the CLI does not invoke the module manager directly. See
 [docs/architecture.md](docs/architecture.md) for component responsibilities,
 execution flow, and feedback semantics.
 
+## MCP server
+
+CamAgent can also be used from MCP clients such as Claude Desktop or Claude
+Code. Start the server over stdio with:
+
+```bash
+python -m app.mcp_server
+```
+
+It exposes `list_modules`, `get_module_info`, `check_module`, and
+`parse_request` (natural language to a structured action, never executed).
+`load_module`, `unload_module`, and `reload_module` are exposed only when
+`CAMAGENT_MCP_ALLOW_MUTATIONS=1` is set, and still require `confirm: true` and
+pass through the safety policy. There is no shell-execution tool.
+`parse_request` needs Anthropic credentials (for example `ANTHROPIC_API_KEY`);
+the model can be changed with `CAMAGENT_MODEL`.
+
+See [docs/mcp.md](docs/mcp.md) for tool inputs and outputs, configuration,
+client setup, and which integrations are still planned.
+
 ## Tests
 
 Run the unit tests with:
@@ -86,4 +106,6 @@ Run the unit tests with:
 python -m pytest
 ```
 
-Tests mock Linux command interactions and never load or unload real drivers.
+Tests mock Linux command interactions and the LLM provider, and never load or
+unload real drivers or call the Anthropic API. The MCP protocol tests are
+skipped when the `mcp` package is not installed.
