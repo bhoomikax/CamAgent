@@ -18,6 +18,36 @@ def test_list_modules_parses_lsmod_output(monkeypatch):
     assert modules[1]["used_by"] == [1]
 
 
+def test_verify_module_loaded_reports_actual_state(monkeypatch):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(
+            returncode=0,
+            stdout="Module Size Used by\nuvcvideo 1234 0\n",
+            stderr="",
+        ),
+    )
+
+    assert module_manager.verify_module_loaded("uvcvideo") is True
+    assert module_manager.verify_module_loaded("missing_module") is False
+
+
+def test_verify_module_loaded_does_not_assume_failed_lsmod_means_unloaded(monkeypatch):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=1, stdout="", stderr="lsmod failed"),
+    )
+
+    try:
+        module_manager.verify_module_loaded("uvcvideo")
+    except RuntimeError as exc:
+        assert str(exc) == "lsmod failed"
+    else:
+        raise AssertionError("Expected verification to fail when lsmod fails")
+
+
 def test_get_module_info_parses_modinfo(monkeypatch):
     sample = "\n".join([
         "filename: /lib/modules/6.8.0-xx-generic/kernel/drivers/media/usb/uvc/uvcvideo.ko",
