@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from app import orchestrator
 from app.manager import module_manager
 
 
@@ -46,6 +47,22 @@ def test_verify_module_loaded_does_not_assume_failed_lsmod_means_unloaded(monkey
         assert str(exc) == "lsmod failed"
     else:
         raise AssertionError("Expected verification to fail when lsmod fails")
+
+
+def test_orchestrator_reports_failed_module_listing(monkeypatch):
+    def fail_listing():
+        raise RuntimeError("lsmod unavailable")
+
+    monkeypatch.setattr(
+        module_manager,
+        "list_modules_checked",
+        fail_listing,
+    )
+
+    result = orchestrator.execute_action("list")
+
+    assert result["status"] == "failure"
+    assert result["message"] == "lsmod unavailable"
 
 
 def test_get_module_info_parses_modinfo(monkeypatch):

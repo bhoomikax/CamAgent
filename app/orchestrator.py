@@ -88,7 +88,7 @@ def execute_action(
 
     try:
         if decision.command == "list":
-            result = {"success": True, "modules": module_manager.list_modules()}
+            result = {"success": True, "modules": module_manager.list_modules_checked()}
         elif decision.command == "info":
             result = module_manager.get_module_info(decision.module)
         elif decision.command == "loaded":
@@ -127,7 +127,7 @@ def execute_action(
             decision.module,
             {"success": False, "message": str(exc) or "Permission denied.", "error": "PermissionDenied"},
         )
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         return _feedback(
             decision.command,
             decision.module,
