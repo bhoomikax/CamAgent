@@ -3,30 +3,11 @@ import re
 import subprocess
 from typing import Any, Dict, List
 
+from app.safety import validate_module_name
+
 logger = logging.getLogger("module_manager")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-
-MODULE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-
-
-def _validate_module_name(module: Any) -> str:
-    if module is None:
-        raise ValueError("Module name cannot be empty.")
-
-    name = str(module).strip()
-    if not name:
-        raise ValueError("Module name cannot be empty.")
-
-    blocked_tokens = ("/", "..", ";", "|", "&", "$", "\n", "\r")
-    if any(token in name for token in blocked_tokens):
-        raise ValueError(f"Invalid module name: {module!r}")
-
-    if not MODULE_NAME_RE.fullmatch(name):
-        raise ValueError(f"Invalid module name: {module!r}")
-
-    return name
-
 
 def _run_command(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, check=False)
@@ -95,7 +76,7 @@ def list_modules() -> List[Dict[str, Any]]:
 
 def get_module_info(module: str) -> Dict[str, Any]:
     try:
-        safe_module = _validate_module_name(module)
+        safe_module = validate_module_name(module)
     except ValueError as exc:
         return {
             "success": False,
@@ -165,7 +146,7 @@ def get_module_info(module: str) -> Dict[str, Any]:
 
 def is_module_loaded(module: str) -> bool:
     try:
-        safe_module = _validate_module_name(module)
+        safe_module = validate_module_name(module)
     except ValueError:
         return False
 
@@ -178,7 +159,7 @@ def is_module_loaded(module: str) -> bool:
 
 def load_module(module: str) -> Dict[str, Any]:
     try:
-        safe_module = _validate_module_name(module)
+        safe_module = validate_module_name(module)
     except ValueError as exc:
         return {
             "success": False,
@@ -234,7 +215,7 @@ def load_module(module: str) -> Dict[str, Any]:
 
 def unload_module(module: str) -> Dict[str, Any]:
     try:
-        safe_module = _validate_module_name(module)
+        safe_module = validate_module_name(module)
     except ValueError as exc:
         return {
             "success": False,
@@ -290,7 +271,7 @@ def unload_module(module: str) -> Dict[str, Any]:
 
 def reload_module(module: str) -> Dict[str, Any]:
     try:
-        safe_module = _validate_module_name(module)
+        safe_module = validate_module_name(module)
     except ValueError as exc:
         return {
             "success": False,

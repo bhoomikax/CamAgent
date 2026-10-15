@@ -2,7 +2,7 @@ import json
 import shlex
 from typing import Any, Callable
 
-from app.manager import module_manager
+from app.orchestrator import execute_action
 
 PROMPT = "camagent> "
 HELP_TEXT = """Supported commands:
@@ -62,22 +62,6 @@ def parse_request(text: str) -> tuple[str, str | None]:
     return command, module
 
 
-def execute_command(command: str, module: str | None) -> Any:
-    if command == "list":
-        return module_manager.list_modules()
-    if command == "info":
-        return module_manager.get_module_info(module)
-    if command == "loaded":
-        return {"module": module, "loaded": module_manager.is_module_loaded(module)}
-    if command == "load":
-        return module_manager.load_module(module)
-    if command == "unload":
-        return module_manager.unload_module(module)
-    if command == "reload":
-        return module_manager.reload_module(module)
-    raise ValueError(f"Cannot execute command: {command}")
-
-
 def run_cli(
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], Any] = print,
@@ -106,7 +90,14 @@ def run_cli(
             output_fn(HELP_TEXT)
             continue
 
-        result = execute_command(command, module)
+        def confirm(prompt: str) -> bool:
+            try:
+                answer = input_fn(f"{prompt} [y/N] ")
+            except (EOFError, KeyboardInterrupt):
+                return False
+            return answer.strip().lower() in {"y", "yes"}
+
+        result = execute_action(command, module, confirm)
         output_fn(json.dumps(result, indent=2))
 
 
