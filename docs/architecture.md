@@ -6,7 +6,7 @@
 | --- | --- |
 | `app/cli.py` | Reads repeated terminal input, parses simple or JSON requests, handles help and exit, asks for mutation confirmation, and formats structured feedback. |
 | `app/orchestrator.py` | Sends each module action through policy evaluation, gates execution on confirmation, dispatches approved actions to the manager, verifies post-operation state, and builds the result envelope. |
-| `app/safety.py` | Defines supported actions, validates module names, and marks module-changing actions as requiring confirmation. |
+| `app/safety/cli_policy.py` | Defines supported CLI actions, validates module names, and marks module-changing actions as requiring confirmation. |
 | `app/manager/module_manager.py` | Wraps Linux module utilities, parses module metadata and loaded state, and provides load, unload, and reload operations. |
 | `tests/` | Exercises parsing, policy decisions, confirmation handling, execution outcomes, and verification using mocked system commands. |
 
