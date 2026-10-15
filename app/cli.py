@@ -62,6 +62,20 @@ def parse_request(text: str) -> tuple[str, str | None]:
     return command, module
 
 
+def format_execution_result(result: dict[str, Any]) -> str:
+    labels = {
+        "success": "SUCCESS",
+        "failure": "FAILURE",
+        "permission_error": "PERMISSION ERROR",
+        "rejected": "VALIDATION REJECTED",
+        "declined": "DECLINED",
+    }
+    label = labels.get(result["status"], "FAILURE")
+    summary = f"{label}: {result['message']}"
+    details = {key: value for key, value in result.items() if key not in {"status", "message"}}
+    return f"{summary}\n{json.dumps(details, indent=2)}"
+
+
 def run_cli(
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], Any] = print,
@@ -98,7 +112,7 @@ def run_cli(
             return answer.strip().lower() in {"y", "yes"}
 
         result = execute_action(command, module, confirm)
-        output_fn(json.dumps(result, indent=2))
+        output_fn(format_execution_result(result))
 
 
 def main() -> None:

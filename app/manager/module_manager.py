@@ -24,18 +24,8 @@ def _log_operation(operation: str, module: str, success: bool, message: str, err
     )
 
 
-def list_modules() -> List[Dict[str, Any]]:
-    try:
-        result = _run_command(["lsmod"])
-    except FileNotFoundError as exc:
-        logger.error("lsmod is not available: %s", exc)
-        return []
-
-    if result.returncode != 0:
-        logger.error("lsmod failed: %s", result.stderr.strip())
-        return []
-
-    lines = result.stdout.strip().splitlines()
+def _parse_lsmod_output(output: str) -> List[Dict[str, Any]]:
+    lines = output.strip().splitlines()
     if len(lines) < 2:
         return []
 
@@ -72,6 +62,29 @@ def list_modules() -> List[Dict[str, Any]]:
         })
 
     return modules
+
+
+def list_modules() -> List[Dict[str, Any]]:
+    try:
+        result = _run_command(["lsmod"])
+    except FileNotFoundError as exc:
+        logger.error("lsmod is not available: %s", exc)
+        return []
+
+    if result.returncode != 0:
+        logger.error("lsmod failed: %s", result.stderr.strip())
+        return []
+
+    return _parse_lsmod_output(result.stdout)
+
+
+def verify_module_loaded(module: str) -> bool:
+    safe_module = validate_module_name(module)
+    result = _run_command(["lsmod"])
+    if result.returncode != 0:
+        message = result.stderr.strip() or result.stdout.strip() or "lsmod failed"
+        raise RuntimeError(message)
+    return any(item["name"] == safe_module for item in _parse_lsmod_output(result.stdout))
 
 
 def get_module_info(module: str) -> Dict[str, Any]:
