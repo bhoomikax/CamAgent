@@ -98,7 +98,8 @@ def test_orchestrator_approves_and_verifies_confirmed_load(monkeypatch):
             "error": None,
         },
     )
-    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: True)
+    states = iter([False, True])
+    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: next(states))
 
     result = orchestrator.execute_action("load", "uvcvideo", lambda prompt: True)
 
@@ -130,6 +131,7 @@ def test_orchestrator_declined_confirmation_does_not_execute(monkeypatch):
         "unload_module",
         lambda module: pytest.fail("declined action must not reach the manager"),
     )
+    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: True)
 
     result = orchestrator.execute_action("unload", "uvcvideo", lambda prompt: False)
 
@@ -143,7 +145,8 @@ def test_orchestrator_fails_if_expected_state_is_not_verified(monkeypatch):
         "load_module",
         lambda module: {"success": True, "message": "loaded"},
     )
-    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: False)
+    states = iter([False, False])
+    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: next(states))
 
     result = orchestrator.execute_action("load", "uvcvideo", lambda prompt: True)
 
@@ -162,6 +165,7 @@ def test_orchestrator_reports_permission_and_execution_failures(monkeypatch):
             "error": "CommandFailed",
         },
     )
+    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: False)
     monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: False)
 
     result = orchestrator.execute_action("load", "uvcvideo", lambda prompt: True)
@@ -182,6 +186,7 @@ def test_orchestrator_reports_permission_exception(monkeypatch):
     def denied(module):
         raise PermissionError("permission denied")
 
+    monkeypatch.setattr(module_manager, "verify_module_loaded", lambda module: False)
     monkeypatch.setattr(module_manager, "load_module", denied)
 
     result = orchestrator.execute_action("load", "uvcvideo", lambda prompt: True)

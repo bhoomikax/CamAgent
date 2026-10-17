@@ -216,6 +216,59 @@ class ActionExecutor:
                 errors=[result_error],
             )
 
+        if action.operation in {
+            Operation.LOAD_MODULE,
+            Operation.UNLOAD_MODULE,
+            Operation.RELOAD_MODULE,
+        }:
+            expected_loaded = action.operation is not Operation.UNLOAD_MODULE
+            try:
+                actual_loaded = self._manager.is_module_loaded(action.module or "")
+            except PermissionError as exc:
+                return ExecutionResult(
+                    success=False,
+                    status="permission_error",
+                    message="Permission denied while verifying module state.",
+                    action=action_data,
+                    risk_level=risk_level,
+                    requires_confirmation=confirmation.required,
+                    confirmed=confirmation.confirmed,
+                    result=manager_result,
+                    errors=[str(exc) or "permission denied"],
+                )
+            except (OSError, RuntimeError) as exc:
+                return ExecutionResult(
+                    success=False,
+                    status="error",
+                    message="Module state could not be verified after the operation.",
+                    action=action_data,
+                    risk_level=risk_level,
+                    requires_confirmation=confirmation.required,
+                    confirmed=confirmation.confirmed,
+                    result=manager_result,
+                    errors=[f"{type(exc).__name__}: {exc}"],
+                )
+
+            verification = {
+                "expected_loaded": expected_loaded,
+                "actual_loaded": actual_loaded,
+                "passed": actual_loaded == expected_loaded,
+            }
+            if isinstance(manager_result, dict):
+                manager_result = {**manager_result, "verification": verification}
+            if not verification["passed"]:
+                return ExecutionResult(
+                    success=False,
+                    status="manager_error",
+                    message="The requested module state could not be verified.",
+                    action=action_data,
+                    risk_level=risk_level,
+                    requires_confirmation=confirmation.required,
+                    confirmed=confirmation.confirmed,
+                    result=manager_result,
+                    errors=["module state does not match the requested operation"],
+                )
+
         return ExecutionResult(
             success=True,
             status="success",
