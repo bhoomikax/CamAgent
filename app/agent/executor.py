@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -177,6 +178,17 @@ class ActionExecutor:
 
         try:
             manager_result = self._dispatch(action)
+        except PermissionError as exc:
+            return ExecutionResult(
+                success=False,
+                status="permission_error",
+                message="Permission denied while accessing Linux module state.",
+                action=action_data,
+                risk_level=risk_level,
+                requires_confirmation=confirmation.required,
+                confirmed=confirmation.confirmed,
+                errors=[str(exc) or "permission denied"],
+            )
         except (OSError, RuntimeError) as exc:
             return ExecutionResult(
                 success=False,
@@ -191,9 +203,10 @@ class ActionExecutor:
 
         result_error = self._manager_result_error(action, manager_result)
         if result_error is not None:
+            permission_error = result_error.startswith("PermissionDenied:")
             return ExecutionResult(
                 success=False,
-                status="manager_error",
+                status="permission_error" if permission_error else "manager_error",
                 message="Module manager reported an unsuccessful operation.",
                 action=action_data,
                 risk_level=risk_level,
@@ -250,6 +263,13 @@ class ActionExecutor:
             return f"{action.operation.value} returned an invalid result"
         if result["success"]:
             return None
+
+        if result.get("error") == "PermissionDenied" or re.search(
+            r"permission denied|operation not permitted|must be root|requires root",
+            str(result.get("message") or ""),
+            re.IGNORECASE,
+        ):
+            return "PermissionDenied: " + str(result.get("message") or "permission denied")
 
         detail = result.get("message") or result.get("error")
         return str(detail or f"{action.operation.value} failed")

@@ -172,7 +172,7 @@ def test_approved_disruptive_action_dispatches(manager):
 def test_load_manager_failure_is_returned_as_structured_error(executor, manager):
     manager.load_result = {
         "success": False,
-        "error": "CommandFailed",
+        "error": "PermissionDenied",
         "message": "permission denied",
     }
     result = executor.execute(
@@ -181,8 +181,26 @@ def test_load_manager_failure_is_returned_as_structured_error(executor, manager)
     )
 
     assert result.success is False
-    assert result.status == "manager_error"
-    assert result.errors == ["permission denied"]
+    assert result.status == "permission_error"
+    assert result.errors == ["PermissionDenied: permission denied"]
+
+
+def test_list_permission_exception_is_reported_as_permission_error(manager):
+    class PermissionDeniedManager(FakeModuleManager):
+        def list_modules(self):
+            raise PermissionError("access denied")
+
+    denied_manager = PermissionDeniedManager()
+    executor = ActionExecutor(
+        manager=denied_manager,
+        policy=SafetyPolicy(denied_manager.is_module_loaded, protected_modules=()),
+    )
+
+    result = executor.execute({"operation": "list_modules"})
+
+    assert result.success is False
+    assert result.status == "permission_error"
+    assert result.errors == ["access denied"]
 
 
 def test_state_conflict_is_rejected_before_confirmation(executor, manager):

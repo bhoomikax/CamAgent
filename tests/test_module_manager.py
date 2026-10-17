@@ -49,6 +49,67 @@ def test_verify_module_loaded_does_not_assume_failed_lsmod_means_unloaded(monkey
         raise AssertionError("Expected verification to fail when lsmod fails")
 
 
+def test_list_modules_propagates_missing_utility(monkeypatch):
+    def missing(args):
+        raise FileNotFoundError(args[0])
+
+    monkeypatch.setattr(module_manager, "_run_command", missing)
+
+    try:
+        module_manager.list_modules()
+    except FileNotFoundError as exc:
+        assert str(exc) == "lsmod"
+    else:
+        raise AssertionError("Expected a missing lsmod utility to be reported")
+
+
+def test_list_modules_reports_permission_failure(monkeypatch):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=1, stdout="", stderr="Operation not permitted"),
+    )
+
+    try:
+        module_manager.list_modules()
+    except PermissionError as exc:
+        assert str(exc) == "Operation not permitted"
+    else:
+        raise AssertionError("Expected lsmod permission failure to be reported")
+
+
+def test_load_module_classifies_permission_and_command_failures(monkeypatch):
+    monkeypatch.setattr(module_manager, "is_module_loaded", lambda module: False)
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=1, stdout="", stderr="Operation not permitted"),
+    )
+
+    denied = module_manager.load_module("uvcvideo")
+    assert denied["error"] == "PermissionDenied"
+
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=1, stdout="", stderr="unknown module"),
+    )
+    failed = module_manager.load_module("uvcvideo")
+    assert failed["error"] == "CommandFailed"
+
+
+def test_inspection_reports_missing_utility(monkeypatch):
+    def missing(args):
+        raise FileNotFoundError(args[0])
+
+    monkeypatch.setattr(module_manager, "_run_command", missing)
+
+    result = module_manager.get_module_info("uvcvideo")
+
+    assert result["success"] is False
+    assert result["error"] == "CommandNotFound"
+
+
 def test_orchestrator_reports_failed_module_listing(monkeypatch):
     def fail_listing():
         raise RuntimeError("lsmod unavailable")

@@ -9,6 +9,11 @@ logger = logging.getLogger("module_manager")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
+_PERMISSION_ERROR_RE = re.compile(
+    r"permission denied|operation not permitted|must be root|requires root",
+    re.IGNORECASE,
+)
+
 def _run_command(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, check=False)
 
@@ -68,20 +73,16 @@ def list_modules_checked() -> List[Dict[str, Any]]:
     result = _run_command(["lsmod"])
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "lsmod failed"
+        if _PERMISSION_ERROR_RE.search(message):
+            raise PermissionError(message)
         raise RuntimeError(message)
 
     return _parse_lsmod_output(result.stdout)
 
 
 def list_modules() -> List[Dict[str, Any]]:
-    try:
-        return list_modules_checked()
-    except FileNotFoundError as exc:
-        logger.error("lsmod is not available: %s", exc)
-        return []
-    except RuntimeError as exc:
-        logger.error("lsmod failed: %s", exc)
-        return []
+    """List modules, propagating command failures instead of implying empty state."""
+    return list_modules_checked()
 
 
 def verify_module_loaded(module: str) -> bool:
@@ -116,12 +117,15 @@ def get_module_info(module: str) -> Dict[str, Any]:
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "module not found"
         logger.warning("modinfo failed for %s: %s", safe_module, message)
+        message, error = _command_error(message, "modinfo failed")
+        if error == "CommandFailed" and re.search(r"module not found|not found", message, re.IGNORECASE):
+            error = "ModuleNotFound"
         return {
             "success": False,
             "module": safe_module,
             "operation": "get_module_info",
             "message": message,
-            "error": "ModuleNotFound",
+            "error": error,
         }
 
     info: Dict[str, Any] = {
@@ -165,11 +169,14 @@ def is_module_loaded(module: str) -> bool:
     except ValueError:
         return False
 
-    for item in list_modules():
-        if item.get("name") == safe_module:
-            return True
+    return verify_module_loaded(safe_module)
 
-    return False
+
+def _command_error(message: str, fallback: str) -> tuple[str, str]:
+    """Classify a nonzero Linux utility result for callers and interfaces."""
+    detail = message.strip() or fallback
+    error = "PermissionDenied" if _PERMISSION_ERROR_RE.search(detail) else "CommandFailed"
+    return detail, error
 
 
 def load_module(module: str) -> Dict[str, Any]:
@@ -208,14 +215,15 @@ def load_module(module: str) -> Dict[str, Any]:
 
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "load failed"
+        message, error = _command_error(message, "load failed")
         logger.warning("modprobe failed for %s: %s", safe_module, message)
-        _log_operation("load", safe_module, False, message, "CommandFailed")
+        _log_operation("load", safe_module, False, message, error)
         return {
             "success": False,
             "module": safe_module,
             "operation": "load",
             "message": message,
-            "error": "CommandFailed",
+            "error": error,
         }
 
     _log_operation("load", safe_module, True, "module loaded successfully", None)
@@ -264,14 +272,15 @@ def unload_module(module: str) -> Dict[str, Any]:
 
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "unload failed"
+        message, error = _command_error(message, "unload failed")
         logger.warning("modprobe -r failed for %s: %s", safe_module, message)
-        _log_operation("unload", safe_module, False, message, "CommandFailed")
+        _log_operation("unload", safe_module, False, message, error)
         return {
             "success": False,
             "module": safe_module,
             "operation": "unload",
             "message": message,
-            "error": "CommandFailed",
+            "error": error,
         }
 
     _log_operation("unload", safe_module, True, "module unloaded successfully", None)
