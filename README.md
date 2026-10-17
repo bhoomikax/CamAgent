@@ -17,6 +17,9 @@ Contents:
 - [Troubleshooting](#troubleshooting)
 - [Current limitations](#current-limitations)
 
+For a step-by-step demo and pre-release walk-through with expected outputs,
+see [docs/release-checklist.md](docs/release-checklist.md).
+
 ## Requirements
 
 - Python 3.10 or newer. The code uses `X | None` type syntax at runtime and
