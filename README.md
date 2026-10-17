@@ -109,3 +109,42 @@ python -m pytest
 Tests mock Linux command interactions and the LLM provider, and never load or
 unload real drivers or call the Anthropic API. The MCP protocol tests are
 skipped when the `mcp` package is not installed.
+
+### Opt-in Linux integration checks
+
+The Linux integration checks exercise real, read-only `lsmod`, `modinfo`, and
+loaded-state inspection. They are skipped by default and on non-Linux hosts.
+They never call `modprobe` or change kernel state.
+
+Prerequisites:
+
+- Linux with `lsmod` and `modinfo` installed and available on `PATH`
+- A module with metadata available to `modinfo`; the default is `loop`
+- Python dependencies installed as above
+
+From the project directory, explicitly enable the checks:
+
+```bash
+CAMAGENT_RUN_LINUX_INTEGRATION=1 python -m pytest tests/test_linux_integration.py -v
+```
+
+To select a different module that exists on the test host, set
+`CAMAGENT_TEST_MODULE`, for example:
+
+```bash
+CAMAGENT_RUN_LINUX_INTEGRATION=1 CAMAGENT_TEST_MODULE=uvcvideo \
+  python -m pytest tests/test_linux_integration.py -v
+```
+
+The checks expect listing to return a list of parsed module records, metadata
+inspection to succeed for the selected module, and the state check to agree
+with the loaded-module listing. Missing utilities cause the relevant check to
+be skipped. A selected module without metadata causes the inspection check to
+fail; choose a module known to be installed for the running kernel.
+
+These checks only cover listing, inspection, and state queries. Failure cases
+such as missing commands, permission errors, and nonzero utility exit codes
+are covered by mocked unit tests, not by intentionally breaking the host.
+State-changing operations are also covered with mocks; they are not part of
+the Linux integration suite. See [docs/linux-modules.md](docs/linux-modules.md)
+for validation details and limitations.

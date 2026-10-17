@@ -235,6 +235,8 @@ Working:
 - Natural-language parsing via `parse_request` with the Anthropic provider,
   plus an `LLMProvider` interface for alternative or mocked providers.
 - `lsmod` failures reported as errors rather than as "module not loaded".
+- CLI and MCP actions routed through the same `ActionExecutor` validation,
+  state policy, confirmation, dispatch, and post-operation verification path.
 - Unit tests that mock the LLM and module manager, and protocol tests that use
   an in-process MCP client.
 
@@ -249,6 +251,3 @@ Planned or not yet available:
   user.
 - Additional device aliases beyond the webcam driver, and module parameters
   for `load_module`.
-- A single execution path. The CLI still uses `app/orchestrator.py` with
-  `app/safety/cli_policy.py`, while MCP uses `ActionExecutor` with
-  `SafetyPolicy`.

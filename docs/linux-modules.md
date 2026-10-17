@@ -169,4 +169,51 @@ Dry-run planning turns a policy decision into a human-readable preview and never
 
 The executor is the only layer that coordinates the complete flow. It validates raw structured input, applies the policy, returns previews for dry runs, obtains confirmation when required, and dispatches the approved operation to the module manager. It does not accept or construct arbitrary command strings.
 
+## 15. Linux validation and integration checks
+
+The default test suite uses mocked Linux commands and manager operations. An
+opt-in integration suite in `tests/test_linux_integration.py` exercises a real
+Linux host for three read-only cases:
+
+| Check | Utility or interface | Expected result |
+| --- | --- | --- |
+| List loaded modules | `lsmod` | A list of parsed records with `name`, `size`, and `used_by` fields. |
+| Inspect module metadata | `modinfo <module>` | Successful metadata for the selected module. |
+| Check loaded state | `lsmod` | The state query agrees with whether the module appears in the listing. |
+
+The suite is disabled unless the host is Linux and
+`CAMAGENT_RUN_LINUX_INTEGRATION=1` is set. Run it from the project root:
+
+```bash
+CAMAGENT_RUN_LINUX_INTEGRATION=1 python -m pytest tests/test_linux_integration.py -v
+```
+
+`lsmod` and `modinfo` must be installed and available on `PATH`. The module
+defaults to `loop`; select an installed module with available `modinfo`
+metadata by setting `CAMAGENT_TEST_MODULE`, for example `uvcvideo`. No root
+privileges are needed for these checks. Missing utilities skip the check that
+needs them. An unavailable selected module or missing metadata is a test
+failure and usually means the module should be changed for that host.
+
+The integration checks do not call `modprobe`, request confirmation, or alter
+kernel state. Missing-utility, permission-denial, and nonzero-command-result
+handling is verified with mocked unit tests. The suite does not establish that
+module loading or unloading will succeed on a particular host: kernel build
+configuration, module availability, dependencies, active use, privileges,
+container restrictions, and system security policy can all affect those
+operations. CamAgent does not elevate privileges, and its module-name checks
+and protected-module policy do not replace operating-system controls.
+
+### Command failure behavior
+
+- A missing utility is reported as a command error; an unsuccessful `lsmod`
+  call is never treated as an empty list or as proof that a module is absent.
+- A missing module reported by `modinfo` is returned as an inspection failure.
+- Permission-denial messages from module commands are reported as permission
+  errors. Other nonzero command results remain command failures with the
+  utility's diagnostic when available.
+- State-changing operations are allowed only after policy checks and explicit
+  confirmation. A successful command is not enough: the observed loaded state
+  must also match the requested result.
+
 ---
