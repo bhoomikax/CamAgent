@@ -169,6 +169,30 @@ def test_approved_disruptive_action_dispatches(manager):
     assert "uvcvideo" in manager.loaded
 
 
+@pytest.mark.parametrize(
+    ("operation", "expected_method", "expected_loaded"),
+    [
+        ("unload_module", "unload_module", False),
+        ("reload_module", "reload_module", True),
+    ],
+)
+def test_confirmed_unload_and_reload_are_verified(executor, manager, operation, expected_method, expected_loaded):
+    result = executor.execute(
+        {"operation": operation, "module": "snd"},
+        confirmation_handler=lambda _: True,
+    )
+
+    assert result.success is True
+    assert result.status == "success"
+    assert (expected_method, "snd") in manager.calls
+    assert result.result["verification"] == {
+        "expected_loaded": expected_loaded,
+        "actual_loaded": expected_loaded,
+        "passed": True,
+    }
+    assert ("snd" in manager.loaded) is expected_loaded
+
+
 def test_load_manager_failure_is_returned_as_structured_error(executor, manager):
     manager.load_result = {
         "success": False,
@@ -201,6 +225,49 @@ def test_list_permission_exception_is_reported_as_permission_error(manager):
     assert result.success is False
     assert result.status == "permission_error"
     assert result.errors == ["access denied"]
+
+
+def test_policy_state_permission_failure_is_not_reported_as_rejection():
+    class PermissionDeniedManager(FakeModuleManager):
+        def is_module_loaded(self, module: str) -> bool:
+            raise PermissionError("Operation not permitted")
+
+    denied_manager = PermissionDeniedManager()
+    executor = ActionExecutor(
+        manager=denied_manager,
+        policy=SafetyPolicy(denied_manager.is_module_loaded, protected_modules=()),
+    )
+
+    result = executor.execute(
+        {"operation": "load_module", "module": "uvcvideo"},
+        confirmation_handler=lambda _: True,
+    )
+
+    assert result.success is False
+    assert result.status == "permission_error"
+    assert result.errors == [
+        "could not determine whether module 'uvcvideo' is loaded: Operation not permitted"
+    ]
+    assert denied_manager.calls == []
+
+
+def test_policy_state_command_failure_is_reported_as_error():
+    class FailingStateManager(FakeModuleManager):
+        def is_module_loaded(self, module: str) -> bool:
+            raise FileNotFoundError("lsmod unavailable")
+
+    failed_manager = FailingStateManager()
+    executor = ActionExecutor(
+        manager=failed_manager,
+        policy=SafetyPolicy(failed_manager.is_module_loaded, protected_modules=()),
+    )
+
+    result = executor.execute({"operation": "load_module", "module": "uvcvideo"})
+
+    assert result.success is False
+    assert result.status == "error"
+    assert "lsmod unavailable" in result.errors[0]
+    assert failed_manager.calls == []
 
 
 def test_state_conflict_is_rejected_before_confirmation(executor, manager):

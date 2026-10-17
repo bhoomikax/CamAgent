@@ -78,6 +78,22 @@ def test_list_modules_reports_permission_failure(monkeypatch):
         raise AssertionError("Expected lsmod permission failure to be reported")
 
 
+@pytest.mark.parametrize("output", ["", "unexpected header\n", "Module Size Used by\nmalformed\n"])
+def test_list_modules_rejects_malformed_success_output(monkeypatch, output):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=0, stdout=output, stderr=""),
+    )
+
+    try:
+        module_manager.list_modules_checked()
+    except RuntimeError as exc:
+        assert "malformed output" in str(exc)
+    else:
+        raise AssertionError("Expected malformed lsmod output to be rejected")
+
+
 def test_load_module_classifies_permission_and_command_failures(monkeypatch):
     monkeypatch.setattr(module_manager, "is_module_loaded", lambda module: False)
     monkeypatch.setattr(
@@ -229,3 +245,16 @@ def test_get_module_info_missing_module_returns_error(monkeypatch):
 
     assert result["success"] is False
     assert result["error"] == "ModuleNotFound"
+
+
+def test_get_module_info_rejects_success_with_unrecognized_output(monkeypatch):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=0, stdout="unexpected output\n", stderr=""),
+    )
+
+    result = module_manager.get_module_info("uvcvideo")
+
+    assert result["success"] is False
+    assert result["error"] == "MalformedOutput"

@@ -30,7 +30,9 @@ def _log_operation(operation: str, module: str, success: bool, message: str, err
 
 
 def _parse_lsmod_output(output: str) -> List[Dict[str, Any]]:
-    lines = output.strip().splitlines()
+    lines = output.splitlines()
+    if not lines or lines[0].split() != ["Module", "Size", "Used", "by"]:
+        raise RuntimeError("lsmod returned malformed output: invalid header")
     if len(lines) < 2:
         return []
 
@@ -41,7 +43,9 @@ def _parse_lsmod_output(output: str) -> List[Dict[str, Any]]:
 
         parts = line.split()
         if len(parts) < 3:
-            continue
+            raise RuntimeError(f"lsmod returned malformed output on line {len(modules) + 2}")
+        if not parts[1].isdigit() or not parts[2].isdigit():
+            raise RuntimeError(f"lsmod returned malformed output on line {len(modules) + 2}")
 
         name = parts[0]
         size = parts[1]
@@ -137,6 +141,7 @@ def get_module_info(module: str) -> Dict[str, Any]:
         "depends": "",
         "parameters": "",
     }
+    parsed_field = False
 
     for line in result.stdout.splitlines():
         if not line or ":" not in line:
@@ -147,18 +152,34 @@ def get_module_info(module: str) -> Dict[str, Any]:
 
         if key == "filename":
             info["filename"] = value
+            parsed_field = True
         elif key == "description":
             info["description"] = value
+            parsed_field = True
         elif key == "author":
             info["author"] = value
+            parsed_field = True
         elif key == "version":
             info["version"] = value
+            parsed_field = True
         elif key == "depends":
             info["depends"] = value
+            parsed_field = True
         elif key == "parm":
             info["parameters"] = value if not info["parameters"] else f"{info['parameters']}; {value}"
+            parsed_field = True
         elif key == "name":
             info["name"] = value
+            parsed_field = True
+
+    if not parsed_field:
+        return {
+            "success": False,
+            "module": safe_module,
+            "operation": "get_module_info",
+            "message": "modinfo returned no recognized metadata fields",
+            "error": "MalformedOutput",
+        }
 
     return {**info, "success": True, "module": safe_module, "operation": "get_module_info"}
 

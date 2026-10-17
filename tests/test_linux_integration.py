@@ -43,7 +43,7 @@ def test_linux_inspects_module_metadata():
     assert info["success"] is True, info
     assert info["name"] == module
     assert info["module"] == module
-    assert isinstance(info["filename"], str)
+    assert info["filename"], info
 
 
 def test_linux_checks_module_load_state_against_lsmod():

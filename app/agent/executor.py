@@ -17,6 +17,11 @@ from app.safety import (
 )
 from app.schemas import ModuleAction, Operation
 
+_PERMISSION_ERROR_RE = re.compile(
+    r"permission denied|operation not permitted|must be root|requires root",
+    re.IGNORECASE,
+)
+
 
 class ModuleManagerProtocol(Protocol):
     """Operations required from the low-level module manager."""
@@ -110,10 +115,29 @@ class ActionExecutor:
         action_data = action.to_dict()
         risk_level = policy_result.risk_level.value
         if not policy_result.allowed or policy_result.action is None:
+            permission_error = any(
+                _PERMISSION_ERROR_RE.search(error) for error in policy_result.errors
+            )
+            state_check_error = any(
+                "could not determine whether module" in error.lower()
+                for error in policy_result.errors
+            )
             return ExecutionResult(
                 success=False,
-                status="rejected",
-                message="Action was rejected by safety policy.",
+                status=(
+                    "permission_error"
+                    if permission_error
+                    else "error"
+                    if state_check_error
+                    else "rejected"
+                ),
+                message=(
+                    "Permission denied while checking module state."
+                    if permission_error
+                    else "Module state could not be determined for the safety check."
+                    if state_check_error
+                    else "Action was rejected by safety policy."
+                ),
                 action=action_data,
                 risk_level=risk_level,
                 errors=list(policy_result.errors),
@@ -317,10 +341,8 @@ class ActionExecutor:
         if result["success"]:
             return None
 
-        if result.get("error") == "PermissionDenied" or re.search(
-            r"permission denied|operation not permitted|must be root|requires root",
-            str(result.get("message") or ""),
-            re.IGNORECASE,
+        if result.get("error") == "PermissionDenied" or _PERMISSION_ERROR_RE.search(
+            str(result.get("message") or "")
         ):
             return "PermissionDenied: " + str(result.get("message") or "permission denied")
 

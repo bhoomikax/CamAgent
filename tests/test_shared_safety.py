@@ -104,6 +104,32 @@ def test_cli_and_mcp_apply_the_same_state_policy(interfaces, command, tool, modu
     assert manager.mutations == []
 
 
+@pytest.mark.parametrize(
+    ("command", "tool", "module"),
+    [
+        ("list", "list_modules", None),
+        ("info", "get_module_info", "snd"),
+        ("loaded", "check_module", "snd"),
+    ],
+)
+def test_read_only_operations_work_through_cli_and_mcp(interfaces, command, tool, module):
+    manager, mcp = interfaces
+    cli_request = {"command": command}
+    mcp_arguments = {}
+    if module is not None:
+        cli_request["module"] = module
+        mcp_arguments["module"] = module
+
+    cli_summary, cli_result = _run_cli(cli_request)
+    mcp_result = mcp.call(tool, mcp_arguments)
+
+    assert cli_summary.startswith("SUCCESS:")
+    assert cli_result["success"] is True
+    assert mcp_result["ok"] is True
+    assert mcp_result["status"] == "success"
+    assert manager.mutations == []
+
+
 def test_cli_decline_and_mcp_missing_confirmation_both_block_mutation(interfaces):
     manager, mcp = interfaces
 
@@ -117,17 +143,32 @@ def test_cli_decline_and_mcp_missing_confirmation_both_block_mutation(interfaces
     assert manager.mutations == []
 
 
-def test_both_interfaces_execute_a_confirmed_state_change(interfaces):
+@pytest.mark.parametrize(
+    ("command", "tool", "module", "initially_loaded", "expected_loaded"),
+    [
+        ("load", "load_module", "uvcvideo", False, True),
+        ("unload", "unload_module", "snd", True, False),
+        ("reload", "reload_module", "snd", True, True),
+    ],
+)
+def test_both_interfaces_execute_a_confirmed_state_change(
+    interfaces, command, tool, module, initially_loaded, expected_loaded
+):
     manager, mcp = interfaces
 
-    cli_summary, cli_result = _run_cli({"command": "load", "module": "uvcvideo"}, "yes")
+    cli_summary, cli_result = _run_cli({"command": command, "module": module}, "yes")
     assert cli_summary.startswith("SUCCESS:")
     assert cli_result["verification"]["passed"] is True
-    assert manager.mutations == [("load_module", "uvcvideo")]
+    assert (module in manager.loaded) is expected_loaded
+    assert manager.mutations == [(tool, module)]
 
-    manager.loaded.remove("uvcvideo")
+    if initially_loaded:
+        manager.loaded.add(module)
+    else:
+        manager.loaded.discard(module)
     manager.calls.clear()
-    mcp_result = mcp.call("load_module", {"module": "uvcvideo", "confirm": True})
+    mcp_result = mcp.call(tool, {"module": module, "confirm": True})
     assert mcp_result["status"] == "success"
     assert mcp_result["result"]["verification"]["passed"] is True
-    assert manager.mutations == [("load_module", "uvcvideo")]
+    assert (module in manager.loaded) is expected_loaded
+    assert manager.mutations == [(tool, module)]

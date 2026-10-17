@@ -209,6 +209,8 @@ and protected-module policy do not replace operating-system controls.
 - A missing utility is reported as a command error; an unsuccessful `lsmod`
   call is never treated as an empty list or as proof that a module is absent.
 - A missing module reported by `modinfo` is returned as an inspection failure.
+- A successful `modinfo` exit with no recognized metadata is reported as
+  malformed output rather than successful inspection.
 - Permission-denial messages from module commands are reported as permission
   errors. Other nonzero command results remain command failures with the
   utility's diagnostic when available.

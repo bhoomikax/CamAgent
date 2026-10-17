@@ -107,6 +107,7 @@ Status codes:
 | `rejected` | Schema validation or the safety policy refused the action. |
 | `confirmation_required` | A state-changing call was made without `confirm: true`. |
 | `error` | The module manager failed, for example because `lsmod` is unavailable. |
+| `permission_error` | A utility or module-state check reported insufficient permissions. |
 | `manager_error` | The module manager reported an unsuccessful operation. |
 | `internal_error` | Unexpected failure; details are logged on the server, not returned. |
 | `unsupported`, `ambiguous` | `parse_request` could not map the request to one safe action. |
