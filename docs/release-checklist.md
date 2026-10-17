@@ -316,8 +316,9 @@ unloads a module or contacts the Anthropic API.
 
   | Group | Command | Expected |
   | --- | --- | --- |
-  | Safety: schema, validator, policy, confirmation, executor, shared CLI/MCP policy | `python -m pytest -q tests/test_actions.py tests/test_validator.py tests/test_policy.py tests/test_confirmation.py tests/test_executor.py tests/test_shared_safety.py` | `148 passed` |
-  | MCP: dispatcher, argument validation, protocol | `python -m pytest -q tests/test_mcp_tools.py tests/test_mcp_validation.py tests/test_mcp_server.py tests/test_mcp_protocol_edge_cases.py` | `544 passed` (protocol files are skipped if `mcp` is missing) |
+  | Safety: schema, validator, policy, confirmation, executor, shared CLI/MCP policy | `python -m pytest -q tests/test_actions.py tests/test_validator.py tests/test_policy.py tests/test_confirmation.py tests/test_executor.py tests/test_shared_safety.py` | `149 passed` |
+  | Module manager and CLI adapter | `python -m pytest -q tests/test_module_manager.py tests/test_cli.py` | `56 passed` |
+  | MCP: dispatcher, argument validation, protocol | `python -m pytest -q tests/test_mcp_tools.py tests/test_mcp_validation.py tests/test_mcp_server.py tests/test_mcp_protocol_edge_cases.py` | `545 passed` (protocol files are skipped if `mcp` is missing) |
   | Intent parsing | `python -m pytest -q tests/test_intent.py tests/test_intent_edge_cases.py` | `310 passed` |
   | End-to-end workflows | `python -m pytest -q tests/test_end_to_end_workflows.py` | `134 passed` |
 
@@ -379,20 +380,20 @@ Run and observed as expected:
 - Section 5: CLI and MCP rejections matched the tables.
 - Section 6: dry run, `confirmation_required`, `rejected`, and `DECLINED` all
   observed; no `modprobe` attempt.
-- Section 7, focused groups: 148, 544, 310, and 134 passed, 0 failed.
+- Section 7, full suite: `python -m pytest -q` exited 0 with
+  `1194 passed, 3 skipped` (the 3 skips are the Linux integration checks).
+  Focused groups: 149, 56, 545, 310, and 134 passed, 0 failed. An earlier run
+  the same day had failed on a missing `import pytest` in
+  `tests/test_module_manager.py` and on four tests that still asserted the
+  pre-refactor orchestrator error codes; both were fixed before this result.
+- Section 1: `pip check` clean after `pip install -r requirements.txt`, which
+  added the previously missing `anthropic` package to the virtual environment.
 
-Not run or not passing:
+Not run:
 
 - Section 2 (real Linux read-only CLI) and section 8 (Linux integration
   checks) were not run; no Linux host was available. Section 8 printed
-  `3 skipped` here.
-- Section 3 with real Anthropic credentials was not run. The `anthropic`
-  package is not installed in this virtual environment even though
-  `requirements.txt` lists it.
-- Section 7, full suite: `python -m pytest` stops with
-  `ERROR tests/test_module_manager.py - NameError: name 'pytest' is not defined`
-  (the file lacks `import pytest`). Excluding that file, 1145 passed, 3 skipped
-  and 3 failed: the three `test_orchestrator_*` tests in `tests/test_cli.py`
-  expect error labels such as `SafetyPolicyRejected`, while the orchestrator
-  returns the first error message. These are release blockers until the tests
-  are fixed or their expectations are updated.
+  `3 skipped` here. Real `lsmod` and `modinfo` behaviour therefore remains
+  unverified for this release.
+- Section 3 with real Anthropic credentials was not run. All intent tests use
+  a fake provider.

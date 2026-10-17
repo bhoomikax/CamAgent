@@ -17,6 +17,12 @@ from app.safety import (
 )
 from app.schemas import ModuleAction, Operation
 
+class _Unset:
+    """Marker for "no per-call confirmation handler was passed"."""
+
+
+_UNSET = _Unset()
+
 _PERMISSION_ERROR_RE = re.compile(
     r"permission denied|operation not permitted|must be root|requires root",
     re.IGNORECASE,
@@ -94,9 +100,16 @@ class ActionExecutor:
         raw_action: Any,
         *,
         dry_run: bool = False,
-        confirmation_handler: ConfirmationHandler | None = None,
+        confirmation_handler: ConfirmationHandler | None | _Unset = _UNSET,
     ) -> ExecutionResult:
-        """Validate and, if approved, perform one structured action."""
+        """Validate and, if approved, perform one structured action.
+
+        When ``confirmation_handler`` is omitted the executor's default handler
+        (if any) is used. Passing ``None`` explicitly means "no handler": a
+        disruptive action then fails closed with ``confirmation_required`` even
+        if a default handler exists. The MCP dispatcher relies on this so an
+        unconfirmed tool call can never borrow another interface's handler.
+        """
         validation = (
             validate_action(raw_action)
             if isinstance(raw_action, ModuleAction)
@@ -162,9 +175,9 @@ class ActionExecutor:
             )
 
         handler = (
-            confirmation_handler
-            if confirmation_handler is not None
-            else self._confirmation_handler
+            self._confirmation_handler
+            if isinstance(confirmation_handler, _Unset)
+            else confirmation_handler
         )
         try:
             confirmation = confirm_operation(policy_result, handler)

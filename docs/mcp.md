@@ -210,13 +210,19 @@ Add `-e CAMAGENT_MCP_ALLOW_MUTATIONS=1` to expose the state-changing tools, and
 Run this from the repository root with the virtual environment's Python:
 
 ```python
+import os
 import sys
 
 import anyio
 from mcp import Client, StdioServerParameters
 
 async def main():
-    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp_server"])
+    # The MCP client starts the server with a minimal environment unless `env`
+    # is given; pass it so CAMAGENT_MCP_ALLOW_MUTATIONS and ANTHROPIC_API_KEY
+    # exported in your shell reach the server process.
+    params = StdioServerParameters(
+        command=sys.executable, args=["-m", "app.mcp_server"], env=dict(os.environ)
+    )
     async with Client(params) as client:
         print([tool.name for tool in (await client.list_tools()).tools])
         result = await client.call_tool("check_module", {"module": "uvcvideo"})

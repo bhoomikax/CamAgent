@@ -1275,3 +1275,21 @@ def test_executor_dry_run_and_mcp_dry_run_agree_on_protected_module(manager, mak
     assert via_mcp["result"] is direct.result is None
     assert via_mcp["errors"] == direct.errors == ["module 'ext4' is protected from reload_module"]
     assert manager.mutations == []
+
+
+def test_mcp_call_without_confirm_never_borrows_the_executors_default_handler(manager, make_executor):
+    # Even an executor configured with an auto-approving handler must not let an
+    # unconfirmed MCP call through: the dispatcher passes an explicit "no handler".
+    executor = make_executor(confirmation_handler=lambda _prompt: True)
+    dispatcher = ToolDispatcher(executor, allow_mutations=True)
+
+    response = dispatcher.call("load_module", {"module": "uvcvideo"})
+
+    assert response["ok"] is False
+    assert response["status"] == "confirmation_required"
+    assert manager.mutations == []
+    assert "uvcvideo" not in manager.loaded
+
+    confirmed = dispatcher.call("load_module", {"module": "uvcvideo", "confirm": True})
+    assert confirmed["status"] == "success"
+    assert manager.mutations == [("load_module", "uvcvideo")]

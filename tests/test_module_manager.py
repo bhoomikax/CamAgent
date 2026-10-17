@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app import orchestrator
 from app.manager import module_manager
 
@@ -138,8 +140,12 @@ def test_orchestrator_reports_failed_module_listing(monkeypatch):
 
     result = orchestrator.execute_action("list")
 
+    assert result["success"] is False
     assert result["status"] == "failure"
-    assert result["message"] == "lsmod unavailable"
+    # The CLI summary is the executor's message; the utility's own text is in `error`.
+    assert result["message"] == "Module manager operation failed."
+    assert result["error"] == "RuntimeError: lsmod unavailable"
+    assert result["modules"] is None
 
 
 def test_get_module_info_parses_modinfo(monkeypatch):
@@ -167,9 +173,10 @@ def test_get_module_info_parses_modinfo(monkeypatch):
 
 
 def test_is_module_loaded_detects_loaded_module(monkeypatch):
+    # verify_module_loaded reads list_modules_checked, so mock that dependency.
     monkeypatch.setattr(
         module_manager,
-        "list_modules",
+        "list_modules_checked",
         lambda: [{"name": "uvcvideo", "size": "1234", "used_by": []}],
     )
 
@@ -258,3 +265,73 @@ def test_get_module_info_rejects_success_with_unrecognized_output(monkeypatch):
 
     assert result["success"] is False
     assert result["error"] == "MalformedOutput"
+
+
+# --- loaded-state errors are never reported as "not loaded" ------------------
+
+
+def _lsmod(monkeypatch, returncode=0, stdout="Module Size Used by\n", stderr=""):
+    monkeypatch.setattr(
+        module_manager,
+        "_run_command",
+        lambda args: SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr),
+    )
+
+
+def test_is_module_loaded_false_only_when_lsmod_answered(monkeypatch):
+    _lsmod(monkeypatch, stdout="Module Size Used by\nsnd 16384 0\n")
+
+    assert module_manager.is_module_loaded("snd") is True
+    assert module_manager.is_module_loaded("uvcvideo") is False
+
+
+@pytest.mark.parametrize("module", ["../x", "-r", "snd; reboot", "_hidden", "a" * 80, ""])
+def test_is_module_loaded_raises_for_invalid_names(monkeypatch, module):
+    _lsmod(monkeypatch)
+
+    with pytest.raises(ValueError):
+        module_manager.is_module_loaded(module)
+
+
+def test_is_module_loaded_raises_when_lsmod_fails(monkeypatch):
+    _lsmod(monkeypatch, returncode=1, stderr="lsmod: command failed")
+
+    with pytest.raises(RuntimeError, match="lsmod: command failed"):
+        module_manager.is_module_loaded("snd")
+
+
+def test_is_module_loaded_raises_permission_error(monkeypatch):
+    _lsmod(monkeypatch, returncode=1, stderr="lsmod: Permission denied")
+
+    with pytest.raises(PermissionError, match="Permission denied"):
+        module_manager.is_module_loaded("snd")
+
+
+def test_is_module_loaded_raises_on_malformed_lsmod_output(monkeypatch):
+    _lsmod(monkeypatch, stdout="unexpected\n")
+
+    with pytest.raises(RuntimeError, match="malformed"):
+        module_manager.is_module_loaded("snd")
+
+
+# --- the manager uses the same strict validator as the executor ---------------
+
+
+@pytest.mark.parametrize("module", ["-r", "--force", "a" * 56, "_hidden", ".snd", "snd..hda", "snd hda", "snd/x", "uvcvidéo"])
+def test_manager_validator_rejects_what_the_executor_rejects(monkeypatch, module):
+    calls = []
+    monkeypatch.setattr(module_manager, "_run_command", lambda args: calls.append(args))
+
+    with pytest.raises(ValueError, match="Invalid module name"):
+        module_manager.validate_module_name(module)
+    for operation in (module_manager.load_module, module_manager.unload_module, module_manager.reload_module):
+        result = operation(module)
+        assert result["success"] is False
+        assert result["error"] == "InvalidModuleName"
+    assert module_manager.get_module_info(module)["error"] == "InvalidModuleName"
+    assert calls == [], "no utility may run for an invalid name"
+
+
+@pytest.mark.parametrize("module", ["uvcvideo", "snd-hda-intel", "snd_hda_intel", "a" * 55, "v4l2.core"])
+def test_manager_validator_accepts_valid_names(module):
+    assert module_manager.validate_module_name(f"  {module} ") == module

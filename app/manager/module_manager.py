@@ -185,12 +185,13 @@ def get_module_info(module: str) -> Dict[str, Any]:
 
 
 def is_module_loaded(module: str) -> bool:
-    try:
-        safe_module = validate_module_name(module)
-    except ValueError:
-        return False
+    """Report whether ``module`` appears in ``lsmod``.
 
-    return verify_module_loaded(safe_module)
+    Returns False only when lsmod answered and the module is absent. An invalid
+    name raises ValueError and an unusable lsmod raises PermissionError or
+    RuntimeError, so "not loaded" is never conflated with "could not tell".
+    """
+    return verify_module_loaded(module)
 
 
 def _command_error(message: str, fallback: str) -> tuple[str, str]:

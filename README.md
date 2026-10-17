@@ -217,7 +217,7 @@ camagent> info nope
 FAILURE: modinfo: ERROR: Module nope not found.
 {
   "success": false,
-  "operation": "get_module_info",
+  "operation": "info",
   "module": "nope",
   "error": "modinfo: ERROR: Module nope not found."
 }

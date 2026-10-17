@@ -121,8 +121,11 @@ def test_orchestrator_rejects_invalid_action_before_manager(monkeypatch):
 
     result = orchestrator.execute_action("load", "../invalid", lambda prompt: True)
 
+    assert result["success"] is False
     assert result["status"] == "rejected"
-    assert result["error"] == "SafetyPolicyRejected"
+    assert result["message"] == "Action failed validation."
+    # `error` carries the first specific validation error, not a code.
+    assert result["error"] == "module name contains forbidden character(s): ['/']"
 
 
 def test_orchestrator_declined_confirmation_does_not_execute(monkeypatch):
@@ -135,8 +138,10 @@ def test_orchestrator_declined_confirmation_does_not_execute(monkeypatch):
 
     result = orchestrator.execute_action("unload", "uvcvideo", lambda prompt: False)
 
+    assert result["success"] is False
     assert result["status"] == "declined"
-    assert result["error"] == "ConfirmationDeclined"
+    assert result["message"] == "Execution was not confirmed."
+    assert result["error"] == "operation was declined"
 
 
 def test_orchestrator_fails_if_expected_state_is_not_verified(monkeypatch):
@@ -191,5 +196,7 @@ def test_orchestrator_reports_permission_exception(monkeypatch):
 
     result = orchestrator.execute_action("load", "uvcvideo", lambda prompt: True)
 
+    assert result["success"] is False
     assert result["status"] == "permission_error"
-    assert result["error"] == "PermissionDenied"
+    assert result["message"] == "Permission denied while accessing Linux module state."
+    assert result["error"] == "permission denied"

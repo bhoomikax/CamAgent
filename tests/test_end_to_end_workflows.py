@@ -270,6 +270,7 @@ def test_cli_info_reads_modinfo_fields(linux):
     label, result = cli_session("info uvcvideo").result
 
     assert label == "SUCCESS"
+    assert result["operation"] == "info", "CLI vocabulary, not the manager's internal name"
     assert result["module"] == "uvcvideo"
     assert result["description"] == "Fake driver for uvcvideo"
     assert result["parameters"] == "quirks:Forced device quirks (uint)"
@@ -695,6 +696,7 @@ def test_unknown_module_info_is_a_manager_failure(linux):
     response = mcp_dispatcher().call("get_module_info", {"module": "nope"})
 
     assert label == "FAILURE"
+    assert result["operation"] == "info"
     assert result["error"] == "modinfo: ERROR: Module nope not found."
     assert response["status"] == "manager_error"
     assert response["result"]["error"] == "ModuleNotFound"
