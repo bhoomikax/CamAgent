@@ -55,4 +55,4 @@ utilities installed.
 Unit tests replace command execution or manager operations with mocks. The
 opt-in Linux integration suite performs only real listing, metadata
 inspection, and loaded-state checks; it never loads or unloads modules. See
-[linux-modules.md](linux-modules.md#linux-validation-and-integration-checks).
+[linux-modules.md](linux-modules.md#15-linux-validation-and-integration-checks).
