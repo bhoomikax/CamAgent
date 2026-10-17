@@ -1,3 +1,9 @@
+"""Command-level policy used by the interactive CLI orchestrator.
+
+Checks CLI command names (``list``, ``info``, ``load`` ...) and module names
+before the orchestrator calls the module manager.
+"""
+
 import re
 from dataclasses import dataclass
 from typing import Any

@@ -1,3 +1,10 @@
+from .cli_policy import (
+    MUTATING_ACTIONS,
+    READ_ONLY_ACTIONS,
+    SafetyDecision,
+    evaluate_action,
+    validate_module_name,
+)
 from .confirmation import (
     ConfirmationHandler,
     ConfirmationResult,
@@ -26,15 +33,20 @@ __all__ = [
     "FORBIDDEN_CHARACTERS",
     "MAX_MODULE_NAME_LENGTH",
     "MODULE_NAME_RE",
+    "MUTATING_ACTIONS",
     "PolicyResult",
+    "READ_ONLY_ACTIONS",
     "RiskLevel",
+    "SafetyDecision",
     "SafetyPolicy",
     "ValidationResult",
     "confirm_operation",
     "create_dry_run",
+    "evaluate_action",
     "is_valid_module_name",
     "module_name_errors",
     "normalise_module_name",
     "validate_action",
+    "validate_module_name",
     "validate_raw",
 ]

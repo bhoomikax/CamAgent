@@ -6,9 +6,15 @@
 | --- | --- |
 | `app/cli.py` | Reads repeated terminal input, parses simple or JSON requests, handles help and exit, asks for mutation confirmation, and formats structured feedback. |
 | `app/orchestrator.py` | Sends each module action through policy evaluation, gates execution on confirmation, dispatches approved actions to the manager, verifies post-operation state, and builds the result envelope. |
-| `app/safety.py` | Defines supported actions, validates module names, and marks module-changing actions as requiring confirmation. |
+| `app/safety/cli_policy.py` | Defines supported CLI actions, validates module names, and marks module-changing actions as requiring confirmation. |
 | `app/manager/module_manager.py` | Wraps Linux module utilities, parses module metadata and loaded state, and provides load, unload, and reload operations. |
-| `tests/` | Exercises parsing, policy decisions, confirmation handling, execution outcomes, and verification using mocked system commands. |
+| `app/agent/executor.py` | Runs structured actions through schema validation, the state-aware `SafetyPolicy`, dry-run, and confirmation before calling the manager. Used by the MCP server. |
+| `app/llm/` | Translates natural-language requests into structured actions through an LLM provider, rejecting unsupported, ambiguous, or ungrounded requests. |
+| `app/mcp_server/` | Exposes approved module tools over MCP, validates tool arguments, and routes calls to the executor or intent parser. See [mcp.md](mcp.md). |
+| `tests/` | Exercises parsing, policy decisions, confirmation handling, execution outcomes, verification, intent parsing, and MCP tool calls using mocked system commands and a mocked LLM. |
+
+The action flow below describes the interactive CLI. MCP tool calls follow
+the executor path described in [mcp.md](mcp.md).
 
 ## Action flow
 
