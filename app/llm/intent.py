@@ -164,8 +164,11 @@ def _decode_envelope(raw_output: str) -> dict[str, Any]:
     if missing:
         raise ValueError(f"model output is missing field(s): {sorted(missing)}")
 
-    if envelope["status"] not in ENVELOPE_STATUSES:
-        raise ValueError(f"model output has unknown status {envelope['status']!r}")
+    status = envelope["status"]
+    # Check the type first: an unhashable value (list, object) would otherwise
+    # raise TypeError from the set lookup and escape the ValueError contract.
+    if not isinstance(status, str) or status not in ENVELOPE_STATUSES:
+        raise ValueError(f"model output has unknown status {status!r}")
     if not isinstance(envelope["reason"], str):
         raise ValueError("model output 'reason' must be a string")
 

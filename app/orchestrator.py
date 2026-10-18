@@ -63,7 +63,15 @@ def _cli_result(result: dict[str, Any], command: Any, module: Any) -> dict[str, 
         if operation == "check_module":
             feedback["loaded"] = payload.get("loaded")
         else:
-            feedback.update({key: value for key, value in payload.items() if key != "verification"})
+            # The manager's own "success" flag must never overwrite the executor's
+            # verdict, its internal operation/module names must not replace the
+            # CLI vocabulary ("info", not "get_module_info"), and a manager
+            # success message must not describe an operation the executor could
+            # not verify.
+            skipped = {"success", "verification", "operation", "module"}
+            if payload.get("success") is True and not result["success"]:
+                skipped.add("message")
+            feedback.update({key: value for key, value in payload.items() if key not in skipped})
             if "verification" in payload:
                 feedback["verification"] = payload["verification"]
     elif operation == "list_modules":

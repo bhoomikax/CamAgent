@@ -334,3 +334,51 @@ def test_result_serializes_to_json_compatible_mapping(executor):
     assert serialized["status"] == "success"
     assert serialized["action"] == {"operation": "list_modules"}
     assert isinstance(serialized["errors"], list)
+
+
+def test_explicit_none_handler_fails_closed_even_with_a_default_handler():
+    """None means "no handler": the executor must not borrow its default."""
+
+    class Manager:
+        def __init__(self):
+            self.calls = []
+            self.loaded = set()
+
+        def is_module_loaded(self, module):
+            return module in self.loaded
+
+        def load_module(self, module):
+            self.calls.append(module)
+            self.loaded.add(module)
+            return {"success": True}
+
+        def list_modules(self):
+            return []
+
+        def get_module_info(self, module):
+            return {"success": True}
+
+        def unload_module(self, module):
+            return {"success": True}
+
+        def reload_module(self, module):
+            return {"success": True}
+
+    manager = Manager()
+    executor = ActionExecutor(
+        manager=manager,
+        policy=SafetyPolicy(is_module_loaded=manager.is_module_loaded),
+        confirmation_handler=lambda _prompt: True,
+    )
+
+    explicit_none = executor.execute({"operation": "load_module", "module": "uvcvideo"}, confirmation_handler=None)
+
+    assert explicit_none.status == "confirmation_required"
+    assert explicit_none.success is False
+    assert manager.calls == []
+
+    # Omitting the argument still uses the configured default handler.
+    defaulted = executor.execute({"operation": "load_module", "module": "uvcvideo"})
+    assert defaulted.status == "success"
+    assert defaulted.confirmed is True
+    assert manager.calls == ["uvcvideo"]

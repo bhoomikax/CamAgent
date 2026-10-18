@@ -4,16 +4,23 @@ Checks CLI command names (``list``, ``info``, ``load`` ...) and module names
 before the orchestrator calls the module manager.
 """
 
-import re
 from dataclasses import dataclass
 from typing import Any
 
-MODULE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+from .validator import module_name_errors
+
 READ_ONLY_ACTIONS = {"list", "info", "loaded"}
 MUTATING_ACTIONS = {"load", "unload", "reload"}
 
 
 def validate_module_name(module: Any) -> str:
+    """Return the stripped module name or raise ValueError.
+
+    Delegates to the same rules as app/safety/validator.py (the executor's
+    validator) so the module manager can never accept a name the executor
+    would reject: leading '-', over-length names, '..', shell characters, and
+    names that do not start with a letter or digit are all refused here too.
+    """
     if module is None:
         raise ValueError("Module name cannot be empty.")
 
@@ -21,12 +28,9 @@ def validate_module_name(module: Any) -> str:
     if not name:
         raise ValueError("Module name cannot be empty.")
 
-    blocked_tokens = ("/", "..", ";", "|", "&", "$", "\n", "\r")
-    if any(token in name for token in blocked_tokens):
-        raise ValueError(f"Invalid module name: {module!r}")
-
-    if not MODULE_NAME_RE.fullmatch(name):
-        raise ValueError(f"Invalid module name: {module!r}")
+    errors = module_name_errors(name)
+    if errors:
+        raise ValueError(f"Invalid module name {module!r}: {'; '.join(errors)}")
 
     return name
 

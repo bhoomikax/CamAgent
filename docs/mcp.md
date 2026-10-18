@@ -210,13 +210,19 @@ Add `-e CAMAGENT_MCP_ALLOW_MUTATIONS=1` to expose the state-changing tools, and
 Run this from the repository root with the virtual environment's Python:
 
 ```python
+import os
 import sys
 
 import anyio
 from mcp import Client, StdioServerParameters
 
 async def main():
-    params = StdioServerParameters(command=sys.executable, args=["-m", "app.mcp_server"])
+    # The MCP client starts the server with a minimal environment unless `env`
+    # is given; pass it so CAMAGENT_MCP_ALLOW_MUTATIONS and ANTHROPIC_API_KEY
+    # exported in your shell reach the server process.
+    params = StdioServerParameters(
+        command=sys.executable, args=["-m", "app.mcp_server"], env=dict(os.environ)
+    )
     async with Client(params) as client:
         print([tool.name for tool in (await client.list_tools()).tools])
         result = await client.call_tool("check_module", {"module": "uvcvideo"})
@@ -224,6 +230,21 @@ async def main():
 
 anyio.run(main)
 ```
+
+## Troubleshooting
+
+| Symptom | Cause | What to do |
+| --- | --- | --- |
+| `ModuleNotFoundError: No module named 'mcp'` on start | The `mcp` package is not installed in the Python the client launches | Install `requirements.txt` into the virtual environment and point the client at that environment's `python`. |
+| `ModuleNotFoundError: No module named 'app'` on start | The server was launched from another working directory | Set `PYTHONPATH` to the repository root in the client configuration, as in the examples above. |
+| `load_module`, `unload_module`, and `reload_module` are missing from the tool list, or return `tool_disabled` | Mutations are disabled | Set `CAMAGENT_MCP_ALLOW_MUTATIONS=1` in the server's environment and restart it. |
+| `confirmation_required` | The call did not include `confirm: true` | Ask the user, then repeat the call with `confirm: true`. Use `dry_run: true` to preview first. |
+| `invalid_arguments` with `argument 'confirm' must be a bool, got str` | The client sent `"true"` as a string | Send a JSON boolean. Values are never coerced. |
+| `rejected` | The safety policy refused the action (protected module, already loaded, not loaded) | Check the `errors` field; these actions are not retried. |
+| `error` with `FileNotFoundError` in `errors` | `lsmod`, `modinfo`, or `modprobe` is not installed, or the host is not Linux | Install the `kmod` utilities on a Linux host. |
+| `permission_error` | A utility reported insufficient permissions | Run the server with the privileges the operation needs; it never elevates itself. |
+| `provider_error` from `parse_request` | No Anthropic credentials, or the `anthropic` package is missing | Set `ANTHROPIC_API_KEY` for the server process and install `anthropic`. Other tools are unaffected. |
+| `internal_error` | An unexpected failure | Details are written to the server's stderr log, not returned to the client. |
 
 ## Integration status
 
